@@ -1,112 +1,64 @@
 # Next.js Storefront
 
-A **modern E-Commerce Storefront** built with **Next.js 14, Prisma, Clerk Authentication, and PostgreSQL**. This application provides a complete online shopping experience with product catalogs, shopping cart, checkout, user authentication, and admin panel.
+A **modern E-Commerce Storefront** built with **Next.js 16, Prisma 7, PostgreSQL, Clerk Authentication, and Stripe**. Full-stack in a single app: products are served via server actions (no external API), payments run through Stripe Embedded Checkout, and product images are managed on Cloudinary.
 
----
-
-## 📸 Screenshot
-*(Add your storefront screenshots here - homepage, product listings, cart, checkout, etc.)*
+> ℹ️ The package name is `store`.
 
 ---
 
 ## ✨ Features
 
-### 🛒 **Shopping Features**
-- Product catalog with categories and filtering
-- Product search with autocomplete
-- Shopping cart with persistence
-- Wishlist/favorites functionality
-- Quick view and product comparison
-- Product reviews and ratings
+### 🛒 **Shopping**
+- Product catalog with text search (debounced, matches product name/company) and grid/list layout toggle
+- Product details page
+- Shopping cart with persistence (per signed-in user, stored in PostgreSQL)
+- Wishlist / favorites
+- Product reviews and ratings from customers
 
-### 👤 **User Authentication**
-- Secure authentication with [Clerk](https://clerk.com/)
-- Email/password login
-- Social login (Google, GitHub, etc.)
-- Passwordless login
-- User profile management
+### 👤 **Authentication ([Clerk](https://clerk.com/))**
+- Sign-in / sign-up via **Clerk modal components** (there are no dedicated `/sign-in` or `/sign-up` pages)
+- All routes except `/`, `/products`, and `/about` require sign-in (enforced in [`proxy.ts`](proxy.ts) — Next.js 16's renamed middleware)
+- **Admin access** is granted to the single Clerk user whose ID matches the `ADMIN_USER_ID` env var (enforced in the middleware and again server-side in `utils/actions.ts`)
 
-### 💳 **Checkout & Payment**
-- Multi-step checkout process
-- Shipping address management
-- Payment gateway integration (Stripe)
-- Order confirmation and tracking
-- Order history
+### 💳 **Checkout & Payment ([Stripe](https://stripe.com/))**
+- Single-step **Stripe Embedded Checkout**
+- Confirmation via Stripe's `return_url` redirect to `GET /api/confirm?session_id=...` (no webhook)
+- Order history — a table of paid orders
 
-### 📦 **Product Management**
-- Product CRUD operations
-- Product images and gallery
-- Stock management
-- Pricing and discounts
-- Product variants (size, color, etc.)
+### 📦 **Product Management (Admin)**
+- Product CRUD with a single Cloudinary-hosted image per product
+- Product creation form with **faker-based autofill** (dev helper) for quick demo data
+- Admin pages: products (create/list), orders, and sales (orders table with totals)
 
-### 📊 **Admin Dashboard**
-- Product management (CRUD)
-- Order management
-- User management
-- Sales analytics and reports
-- Category and collection management
-
-### 🎨 **UI/UX Features**
-- Responsive design (mobile-first)
-- Dark/light mode support
-- Smooth animations and transitions
-- Accessibility compliant (WCAG)
-- SEO optimized
+### 🎨 **UI/UX**
+- Responsive, mobile-first design
+- Dark/light mode via [next-themes](https://github.com/pacocoursey/next-themes)
+- shadcn/ui-style components on [Radix UI](https://www.radix-ui.com/) primitives
 
 ---
 
 ## 🛠 Tech Stack
 
-**Frontend Framework:**
-- [Next.js 14](https://nextjs.org/) - React framework with App Router
-- [React 18](https://react.dev/) - UI library
-- [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
-
-**Authentication:**
-- [Clerk](https://clerk.com/) - Complete authentication solution
-  - `@clerk/nextjs` - Next.js integration
-
-**Database & ORM:**
-- [PostgreSQL](https://www.postgresql.org/) - Relational database
-- [Prisma](https://www.prisma.io/) - Next-generation ORM
-  - `@prisma/client` - Prisma client
-  - `@prisma/adapter-pg` - PostgreSQL adapter
-
-**Styling:**
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [next-themes](https://github.com/pacocoursey/next-themes) - Dark/light mode support
-- [Radix UI](https://www.radix-ui.com/) - Accessible UI primitives
-  - `@radix-ui/react-checkbox`
-  - `@radix-ui/react-dropdown-menu`
-  - `@radix-ui/react-icons`
-
-**State Management:**
-- React Context API
-- [Zustand](https://github.com/pmndrs/zustand) (if used)
-
-**Form Handling:**
-- [React Hook Form](https://react-hook-form.com/) (if used)
-- [Zod](https://zod.dev/) - Schema validation (if used)
-
-**Payment:**
-- [Stripe](https://stripe.com/) - Payment processing
-
-**Build Tools:**
-- [ESLint](https://eslint.org/) - Code linting
-- [Prettier](https://prettier.io/) - Code formatting
+- [Next.js 16](https://nextjs.org/) (App Router) + [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- [Prisma 7](https://www.prisma.io/) + [PostgreSQL](https://www.postgresql.org/) — via `@prisma/adapter-pg` (driver adapter + `pg` Pool); models: `Product`, `Favorite`, `Review`, `Cart`, `CartItem`, `Order` (users exist only as `clerkId` strings — there is no User model)
+- [@clerk/nextjs](https://clerk.com/) — authentication
+- [Stripe](https://stripe.com/) — payments (server-side SDK + Embedded Checkout)
+- [Cloudinary](https://cloudinary.com/) — product image hosting
+- [Tailwind CSS](https://tailwindcss.com/) — styling
+- Data access via **server actions** in `utils/actions.ts` and the Prisma singleton in `utils/db.ts`
+- [@faker-js/faker](https://fakerjs.dev/) — dev-only form autofill
 
 ---
 
 ## 💻 Installation
 
 ### Prerequisites
-- Node.js (v18 or later)
-- npm or yarn
-- PostgreSQL database
-- Git
-- Clerk account (for authentication)
-- Stripe account (for payments)
+- **Node.js 20.9+** (required by Next.js 16)
+- npm
+- A **PostgreSQL** database
+- A [Clerk](https://clerk.com/) account (keys + an admin user ID)
+- A [Stripe](https://stripe.com/) account (test keys are fine)
+- A [Cloudinary](https://cloudinary.com/) account (for product images)
 
 ### Quick Start
 
@@ -119,28 +71,24 @@ A **modern E-Commerce Storefront** built with **Next.js 14, Prisma, Clerk Authen
 2. **Install dependencies:**
    ```bash
    npm install
-   # or
-   yarn install
    ```
 
 3. **Set up environment variables:**
    ```bash
-   cp .env.example .env.local
+   cp .env.example .env
    ```
-   Edit `.env.local` file with your configuration (see [Environment Variables](#-environment-variables))
+   > ⚠️ Use a file named **`.env`** (not `.env.local`): [`prisma.config.ts`](prisma.config.ts) loads the environment with `dotenv/config`, which reads `.env` only. Next.js reads `.env` too, so a single file works for both.
 
-4. **Set up database:**
+4. **Set up the database:**
    ```bash
-   npx prisma generate
-   npx prisma migrate dev
-   npx prisma db seed
+   npx prisma db push     # create the schema (no migrations are committed)
+   npx prisma generate    # generate the client (also runs automatically on `npm run build`)
+   npx prisma db seed     # seed 4 demo products from prisma/products.json
    ```
 
 5. **Run the development server:**
    ```bash
    npm run dev
-   # or
-   yarn dev
    ```
 
 6. **Build for production:**
@@ -149,43 +97,39 @@ A **modern E-Commerce Storefront** built with **Next.js 14, Prisma, Clerk Authen
    npm run start
    ```
 
-The application will start at `http://localhost:3000`
+The application will start at `http://localhost:3000`.
 
 ---
 
 ## ⚙ Environment Variables
 
-Create a `.env.local` file in the root directory and add the following variables:
+All variables are in [`.env.example`](.env.example):
 
-```env
-# Next.js Configuration
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string (**required**) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
+| `CLERK_SECRET_KEY` | Clerk secret key |
+| `ADMIN_USER_ID` | Clerk user ID of the admin (unlocks `/admin`) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (server-side checkout) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
+| `CLOUDINARY_NAME` | Cloudinary cloud name |
+| `CLOUDINARY_KEY` | Cloudinary API key |
+| `CLOUDINARY_SECRET` | Cloudinary API secret |
+| `NEXT_PUBLIC_WEBSITE_URL` | Public site URL (used by the share button) |
+| `KEEP_ALIVE_TOKEN` | Token required by `GET /api/keep-alive?token=...` (returns 403 otherwise) |
 
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+---
 
-# Database (PostgreSQL)
-DATABASE_URL=postgresql://username:password@localhost:5432/storefront_db?schema=public
+## 📡 API Routes
 
-# Stripe Payment
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| POST | `/api/payment` | Signed-in | Creates a Stripe Checkout session for the cart |
+| GET | `/api/confirm` | Public | Stripe `return_url` — verifies the session and marks the order paid |
+| GET | `/api/keep-alive` | Token-protected | Health check / DB keep-alive (`?token=` must match `KEEP_ALIVE_TOKEN`) |
 
-# Cloud Storage (Optional)
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-# Analytics (Optional)
-NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=your_ga_id
-```
+Everything else (products, cart, favorites, reviews, orders) goes through **server actions**, not HTTP endpoints.
 
 ---
 
@@ -193,111 +137,33 @@ NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=your_ga_id
 
 ```
 nextjs-storefront/
-├── app/                      # Next.js App Router
-│   ├── about/               # About page
-│   ├── admin/               # Admin dashboard
-│   │   ├── layout.tsx
-│   │   ├── products/
-│   │   │   ├── create/
-│   │   │   ├── [id]/
-│   │   │   │   └── edit/
-│   │   │   └── page.tsx
-│   │   └── sales/
-│   │       └── page.tsx
-│   ├── api/                 # API routes
-│   │   ├── confirm/
-│   │   │   └── route.ts
-│   │   ├── keep-alive/
-│   │   │   └── route.ts
-│   │   └── payment/
-│   │       └── route.ts
-│   ├── cart/                # Shopping cart
-│   │   └── page.tsx
-│   ├── checkout/             # Checkout process
-│   │   ├── CheckoutClient.tsx
-│   │   └── page.tsx
+├── app/
+│   ├── page.tsx             # Homepage (featured products)
+│   ├── products/            # Catalog + [id] details page
+│   ├── cart/                # Cart page
+│   ├── checkout/            # Stripe Embedded Checkout
 │   ├── favorites/           # Wishlist
-│   │   └── page.tsx
-│   ├── orders/              # User orders
-│   │   └── page.tsx
-│   ├── products/            # Product pages
-│   │   └── page.tsx
-│   ├── reviews/             # Product reviews
-│   │   └── page.tsx
-│   ├── layout.tsx           # Root layout
-│   └── page.tsx             # Homepage
-├── components/              # React components
-│   ├── cart/                # Cart components
-│   ├── form/                # Form components
-│   ├── global/              # Global/Shared components
-│   ├── home/                # Home page components
-│   ├── navbar/              # Navigation components
-│   ├── products/            # Product components
-│   ├── reviews/             # Review components
-│   ├── single-product/      # Single product page components
-│   └── ui/                  # UI primitives
-├── lib/                     # Utility libraries
-├── prisma/                  # Prisma ORM
-│   ├── products.json       # Product data (seed)
-│   ├── schema.prisma        # Database schema
-│   └── seed.js              # Database seeding script
-├── public/                  # Static assets
-│   └── images/
-├── utils/                   # Utility functions
-├── components.json
-├── eslint.config.mjs
-├── .env.example
-├── .gitignore
-├── package.json
-└── README.md
+│   ├── orders/              # Order history
+│   ├── reviews/             # Customer reviews ([productId])
+│   ├── admin/               # Admin area (Sidebar, products create/list, orders, sales)
+│   ├── about/               # About page
+│   ├── api/                 # payment, confirm, keep-alive routes
+│   ├── providers.tsx / theme-provider.tsx
+│   └── layout.tsx
+├── components/              # home/, products/, single-product/, cart/, checkout/,
+│                            # favorites/, reviews/, admin/, navbar/, form/, ui/
+├── prisma/
+│   ├── schema.prisma        # Product, Favorite, Review, Cart, CartItem, Order
+│   ├── products.json        # Seed data (4 demo products)
+│   └── seed.js
+├── utils/
+│   ├── actions.ts           # Server actions (products, cart, favorites, reviews, orders)
+│   ├── db.ts                # Prisma singleton (driver adapter + pg Pool)
+│   └── ...
+├── proxy.ts                 # Next.js 16 middleware — route protection + admin gate
+├── prisma.config.ts         # Prisma 7 config (loads .env)
+└── .env.example
 ```
-
----
-
-## 🚀 Demo
-
-### Run the application locally:
-```bash
-npm run dev
-```
-
-### Access the application:
-- **Storefront:** `http://localhost:3000`
-- **Admin Dashboard:** `http://localhost:3000/admin`
-- **Sign In:** `http://localhost:3000/sign-in`
-- **Sign Up:** `http://localhost:3000/sign-up`
-
-### Test Accounts (create via Clerk):
-- **Admin:** admin@demo.com
-- **Customer:** customer@demo.com
-
----
-
-## 📡 API Documentation
-
-### Base URL
-```
-http://localhost:3000/api
-```
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/auth` | Get authentication status | Public |
-
-### Payment Endpoints
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| POST | `/api/payment` | Create payment intent | Private |
-| POST | `/api/confirm` | Confirm payment | Private |
-
-### Keep-Alive Endpoint
-
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/keep-alive` | Health check endpoint | Public |
 
 ---
 
@@ -306,29 +172,11 @@ http://localhost:3000/api
 | Script | Description |
 |--------|-------------|
 | `npm run dev` | Start development server |
-| `npm run build` | Build for production |
+| `npm run build` | Generate Prisma client + build for production |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
-| `npm run lint:fix` | Fix ESLint issues |
-| `npm run type-check` | Run TypeScript type checking |
-| `npm run prisma:generate` | Generate Prisma client |
-| `npm run prisma:migrate` | Run database migrations |
-| `npm run prisma:studio` | Open Prisma Studio |
-| `npm run prisma:seed` | Seed database with initial data |
 
----
-
-## 🎯 Project Roadmap
-
-- [x] Core e-commerce functionality
-- [x] User authentication with Clerk
-- [x] Product catalog and management
-- [x] Shopping cart and checkout
-- [x] Admin dashboard
-- [ ] Advanced search and filtering
-- [ ] Product recommendations
-- [ ] Multi-language support
-- [ ] Mobile app integration
+Seed command: `npx prisma db seed` (no dedicated npm script).
 
 ---
 
@@ -358,4 +206,4 @@ For support, please open an issue or contact the maintainer.
 
 ## 🏷 Topics
 
-`nextjs`, `react`, `typescript`, `ecommerce`, `prisma`, `postgresql`, `clerk-authentication`, `stripe`, `tailwindcss`, `frontend`, `storefront`, `shopping-cart`, `checkout`, `admin-dashboard`
+`nextjs`, `react`, `typescript`, `ecommerce`, `storefront`, `prisma`, `postgresql`, `clerk`, `stripe`, `cloudinary`, `tailwindcss`, `server-actions`
